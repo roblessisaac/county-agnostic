@@ -47,7 +47,7 @@ def build_addresses(row):
     mailable_addr = f"{mailable_addr_line}, {muni}, WI {zip_c}".replace(" ,", ",").strip(" ,")
     return pd.Series([base_addr, mailable_addr])
 
-# --- 3. UI MAPPING LOGIC ---
+# --- 3. MAPPING UI ---
 st.header("Step 1: Upload Data")
 uploaded_shapefile = st.file_uploader("Upload County Shapefile (.zip)", type=["zip"])
 uploaded_kml = st.file_uploader("Upload Territory KML File", type=["kml"])
@@ -56,19 +56,32 @@ if uploaded_shapefile and not st.session_state['mappings']:
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     tfile.write(uploaded_shapefile.read())
     tfile.close()
+    
     try:
         gdf = gpd.read_file(f"zip://{tfile.name}")
+        
+        # --- THE FIX ---
+        if not isinstance(gdf, gpd.GeoDataFrame):
+            st.error("The file loaded, but it does not have attribute data (columns). Please verify that your ZIP file contains the required .dbf file along with the .shp file, as the attribute table is missing.")
+            st.stop()
+        # ----------------
+            
         cols = gdf.columns.tolist()
         st.subheader("Map Your Columns")
         col_map = {}
         fields = ['HouseNo', 'HouseSx', 'Dir', 'Street', 'StType', 'Unit', 'Muni', 'Zip_Code', 'Status']
+        
         for field in fields:
+            # We add an index to the selectbox to make it easier to find columns
             col_map[field] = st.selectbox(f"Select column for {field}", cols, index=cols.index(field) if field in cols else 0)
+        
         if st.button("Confirm Mapping"):
             st.session_state['mappings'] = col_map
             st.session_state['gdf_path'] = tfile.name
             st.rerun()
-    except Exception as e: st.error(f"Error reading shapefile: {e}")
+            
+    except Exception as e:
+        st.error(f"Error reading shapefile: {e}")
 
 if st.session_state['mappings'] and not st.session_state['excluded_values']:
     gdf = gpd.read_file(f"zip://{st.session_state['gdf_path']}")
