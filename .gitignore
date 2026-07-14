@@ -1,0 +1,10 @@
+# Ignore everything in the data folder
+data/
+*.zip
+*.shp
+*.dbf
+*.shx
+*.prj
+.DS_Store
+__pycache__/
+.streamlit/
